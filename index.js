@@ -23,7 +23,9 @@ async function run() {
   try {
     await client.connect();
     const database = client.db("socialEventsDB"); // Use correct DB
-    const eventsCollection = database.collection("events"); // Fixed variable name
+    const eventsCollection = database.collection("events");
+    const joinedUsersCollection = database.collection("joinedUsers");
+
 
     console.log("MongoDB connected");
 
@@ -59,6 +61,56 @@ async function run() {
       } catch (err) {
         console.error("Get events failed:", err);
         res.status(500).send({ message: "Server error", error: err.message });
+      }
+    });
+
+    //get single event
+    app.get("/events/:id", async (req, res) => {
+      const { id } = req.params;
+      const event = await eventsCollection.findOne({ _id: new ObjectId(id) });
+      res.send(event);
+    });
+
+
+    //------joined event------
+    app.post("/events/:id/join", async (req, res) => {
+      const { id } = req.params;
+      const { userEmail } = req.body;
+
+      if (!userEmail) return res.status(400).send({ message: "User email required" });
+
+
+      const joined = await joinedUsersCollection.findOne({ eventId: id, userEmail });
+      if (joined) return res.send({ message: "User already joined this event" });
+
+
+      const result = await joinedUsersCollection.insertOne({
+        eventId: id,
+        userEmail,
+        joinedAt: new Date(),
+      });
+
+      res.send({ message: "Joined event successfully", result });
+    });
+    //----------------------------------
+    // Get all joined events for a user
+    app.get("/joined-events/:userEmail", async (req, res) => {
+      try {
+        const userEmail = req.params.userEmail;
+
+
+        const joinedRecords = await joinedUsersCollection.find({ userEmail }).toArray();
+
+
+        const eventIds = joinedRecords.map(r => new ObjectId(r.eventId));
+
+
+        const events = await eventsCollection.find({ _id: { $in: eventIds } }).toArray();
+
+        res.send(events);
+      } catch (err) {
+        console.error("Get joined events failed:", err);
+        res.status(500).send({ message: "Server error" });
       }
     });
 
