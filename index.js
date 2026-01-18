@@ -4,7 +4,7 @@ const { MongoClient, ObjectId, ServerApiVersion } = require("mongodb");
 require("dotenv").config();
 
 const app = express();
-const port = process.env.PORT || 5000; 
+const port = process.env.PORT || 5000;
 
 
 app.use(cors());
@@ -47,19 +47,31 @@ async function run() {
     });
 
     // Get all events
+    // Get all upcoming events with filter + search
     app.get("/events", async (req, res) => {
       try {
+        const { type, search } = req.query;
         const today = new Date();
-        const events = await eventsCollection
-          .find({ date: { $gte: today } })
-          .sort({ date: 1 })
-          .toArray();
+
+        // Build MongoDB filter
+        const filter = { date: { $gte: today } };
+
+        if (type && type !== "all") {
+          filter.type = { $regex: `^${type}$`, $options: "i" }; // case-insensitive exact match
+        }
+
+        if (search) {
+          filter.title = { $regex: search, $options: "i" }; // case-insensitive search
+        }
+
+        const events = await eventsCollection.find(filter).sort({ date: 1 }).toArray();
         res.json(events);
       } catch (err) {
         console.error(err);
         res.status(500).json({ message: "Server error" });
       }
     });
+
 
     // Get single event
     app.get("/events/:id", async (req, res) => {
@@ -132,6 +144,31 @@ async function run() {
         res.status(500).json({ message: "Server error" });
       }
     });
+
+    //update
+    // update event
+    app.put("/events/:id", async (req, res) => {
+      try {
+        const id = req.params.id;
+        const updatedEvent = req.body;
+
+        if (updatedEvent.date) {
+          updatedEvent.date = new Date(updatedEvent.date);
+        }
+
+        const result = await eventsCollection.updateOne(
+          { _id: new ObjectId(id) },
+          { $set: updatedEvent }
+        );
+
+        res.send(result);
+      } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: "Server error" });
+      }
+    });
+
+
 
 
 
