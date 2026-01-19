@@ -26,7 +26,7 @@ async function initDb() {
   console.log("MongoDB connected");
 }
 
-initDb(); 
+initDb();
 
 
 
@@ -86,6 +86,9 @@ app.put("/events/:id", async (req, res) => {
   res.json(result);
 });
 
-//app.listen(port, () => console.log(`Server running on port ${port}`));
+app.get("/", (req, res) => res.send("Server is running"));
+
+
+app.listen(port, () => console.log(`Server running on port ${port}`));
 
 
